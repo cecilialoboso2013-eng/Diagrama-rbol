@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Diagrama de Árbol y Principio Multiplicativo</title>
+<style>
+body{margin:0;font-family:Calibri,Arial,sans-serif;background:#f5f7fb;color:#1f2937}
+header{background:#1f4e8c;color:white;padding:20px}.wrap{max-width:1200px;margin:auto;padding:18px}
+.card{background:white;border:1px solid #cbd5e1;border-radius:14px;padding:16px;margin-bottom:14px}
+h2,h3{color:#1f4e8c}.note{background:#fff6df;border:1px solid #efd58f;border-radius:10px;padding:11px;line-height:1.45}
+input,textarea{width:100%;padding:9px;border:1px solid #b8c4d1;border-radius:8px;font:inherit}
+textarea{min-height:70px}.stage{border:1px solid #d5dde7;background:#fbfcfe;border-radius:11px;padding:12px;margin:10px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}button{border:0;border-radius:8px;padding:9px 13px;font-weight:700;background:#1f4e8c;color:white;cursor:pointer}
+.secondary{background:#e8eef6;color:#1f4e8c;border:1px solid #c8d3e0}.danger{background:#f9e8e8;color:#a63a3a;border:1px solid #ebc0c0}
+.metricgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}.metric{border:1px solid #cbd5e1;border-radius:9px;padding:10px;text-align:center}
+.metric b{display:block;color:#1f4e8c}.metric span{font-size:22px;font-weight:700}.formula{text-align:center;font-size:23px;font-weight:700;background:#f1f6fc;padding:12px;border-radius:9px;color:#173d70}
+.space{background:#fafafa;border:1px dashed #b8c4d1;border-radius:8px;padding:10px;line-height:1.65;max-height:260px;overflow:auto}
+.tree{overflow:auto;border:1px solid #cbd5e1;border-radius:10px;padding:8px}.reading{background:#f8fbff;border-left:5px solid #1f4e8c;padding:12px;line-height:1.55}
+@media print{header,.btns,.note{display:none!important}.card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<header><h1>Diagrama de Árbol y Principio Multiplicativo</h1><div>Generador de combinaciones, espacio muestral y cardinalidad</div></header>
+<div class="wrap">
+
+<div class="note"><b>Cómo usar:</b> agrega una etapa por cada decisión o experimento. Ejemplo: <b>Moneda</b> → Cara, Sello; <b>Dado</b> → 1, 2, 3, 4, 5, 6.</div>
+
+<div class="card">
+<h2>1. Define la situación</h2>
+<label>Título</label><input id="titulo" value="Experimento compuesto">
+<div id="stages"></div>
+<div class="btns">
+<button onclick="addStage()">+ Agregar etapa</button>
+<button class="secondary" onclick="ejMoneda()">Moneda + dado</button>
+<button class="secondary" onclick="ejRestaurante()">Restaurante</button>
+<button class="secondary" onclick="ejCena()">Cena completa</button>
+<button class="secondary" onclick="ejVestuario()">Vestuario</button>
+<button class="danger" onclick="limpiar()">Limpiar</button>
+</div>
+<div class="btns">
+<button onclick="generar()">Generar resultados</button>
+<button class="secondary" onclick="window.print()">Imprimir / PDF</button>
+<button class="secondary" onclick="descargarSVG()">Descargar árbol SVG</button>
+</div>
+<div id="msg"></div>
+</div>
+
+<div id="resultados" style="display:none">
+<div class="card">
+<h2>2. Principio multiplicativo</h2>
+<div id="metricas" class="metricgrid"></div>
+<div id="formula" class="formula"></div>
+<div id="explica" class="reading" style="margin-top:10px"></div>
+</div>
+
+<div class="card">
+<h2>3. Espacio muestral</h2>
+<div class="btns"><button class="secondary" onclick="copiar()">Copiar espacio muestral</button></div>
+<div id="espacio" class="space"></div>
+</div>
+
+<div class="card">
+<h2>4. Diagrama de árbol</h2>
+<div id="arbol" class="tree"></div>
+</div>
+
+<div class="card">
+<h2>5. Lectura del diagrama</h2>
+<div id="lectura" class="reading"></div>
+</div>
+</div>
+
+</div>
+<script>
+let lastSvg="", lastOutcomes=[];
+
+function esc(s){return String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m]))}
+function opts(s){return String(s).split(/[;,\n]+/).map(x=>x.trim()).filter(Boolean)}
+
+function addStage(nombre="",opciones=""){
+ const n=document.querySelectorAll(".stage").length+1;
+ const div=document.createElement("div"); div.className="stage";
+ div.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#1f4e8c">Etapa ${n}</b><button class="danger" onclick="this.closest('.stage').remove();renum()">Eliminar</button></div>
+ <div class="grid" style="margin-top:8px">
+ <div><label>Nombre de la etapa</label><input class="sn" value="${esc(nombre)}" placeholder="Ej.: Moneda"></div>
+ <div><label>Opciones o ramas</label><textarea class="so" placeholder="Ej.: Cara, Sello">${esc(opciones)}</textarea></div>
+ </div>`;
+ stages.appendChild(div);
+}
+function renum(){[...document.querySelectorAll(".stage")].forEach((d,i)=>d.querySelector("b").textContent=`Etapa ${i+1}`)}
+function getStages(){return [...document.querySelectorAll(".stage")].map((d,i)=>({name:d.querySelector(".sn").value.trim()||`Etapa ${i+1}`,options:opts(d.querySelector(".so").value)}))}
+function setScenario(t,arr){titulo.value=t;stages.innerHTML="";arr.forEach(x=>addStage(x.name,x.options.join(", ")));generar()}
+function ejMoneda(){setScenario("Lanzamiento de una moneda y un dado",[{name:"Moneda",options:["Cara","Sello"]},{name:"Dado",options:["1","2","3","4","5","6"]}])}
+function ejRestaurante(){setScenario("Menú de restaurante",[{name:"Plato principal",options:["Pollo","Carne","Pasta"]},{name:"Postre",options:["Helado","Fruta","Flan"]}])}
+function ejCena(){setScenario("Cena completa",[{name:"Entrada",options:["Ensalada","Sopa"]},{name:"Plato principal",options:["Pollo","Pescado","Pasta"]},{name:"Postre",options:["Helado","Fruta"]}])}
+function ejVestuario(){setScenario("Combinaciones de vestuario",[{name:"Polera",options:["Blanca","Azul","Negra"]},{name:"Pantalón",options:["Jeans","Negro"]},{name:"Zapatos",options:["Zapatillas","Botines"]}])}
+function limpiar(){titulo.value="Experimento compuesto";stages.innerHTML="";addStage("Etapa 1","");addStage("Etapa 2","");resultados.style.display="none";msg.innerHTML=""}
+
+function cartesiano(sts){
+ let r=[[]];
+ sts.forEach(s=>{let n=[];r.forEach(p=>s.options.forEach(o=>n.push([...p,o])));r=n});
+ return r
+}
+function generar(){
+ msg.innerHTML="";
+ const sts=getStages();
+ if(!sts.length){msg.innerHTML='<div class="note">Agrega al menos una etapa.</div>';return}
+ for(const s of sts){if(!s.options.length){msg.innerHTML=`<div class="note">La etapa "${esc(s.name)}" no tiene opciones.</div>`;return}}
+ const total=sts.reduce((a,s)=>a*s.options.length,1);
+ if(total>300){msg.innerHTML=`<div class="note">Esta situación genera ${total} resultados. Usa un máximo de 300 para mantener el árbol legible.</div>`;return}
+ const outs=cartesiano(sts); lastOutcomes=outs;
+ resultados.style.display="block";
+ metricas.innerHTML=sts.map(s=>`<div class="metric"><b>${esc(s.name)}</b><span>${s.options.length}</span><div>opciones</div></div>`).join("")+`<div class="metric"><b>Cardinalidad</b><span>${total}</span><div>resultados</div></div>`;
+ formula.innerHTML=`n(S) = ${sts.map(s=>s.options.length).join(" × ")} = <b>${total}</b>`;
+ explica.innerHTML=`<b>Principio multiplicativo:</b> se multiplica la cantidad de opciones de cada etapa. Por ello, existen <b>${total}</b> resultados posibles.`;
+ espacio.innerHTML=`<b>S = {</b> ${outs.map(o=>`(${o.map(esc).join(", ")})`).join("; ")} <b>}</b><br><br><b>n(S) = ${total}</b>`;
+ lastSvg=treeSVG(sts); arbol.innerHTML=lastSvg;
+ lectura.innerHTML=leer(sts,total);
+ localStorage.setItem("arbol_pm",JSON.stringify({titulo:titulo.value,stages:sts}));
+}
+function leer(sts,total){
+ let t=`El árbol parte en <b>Inicio</b>. La primera ramificación corresponde a <b>${esc(sts[0].name)}</b>, con ${sts[0].options.length} opciones. `;
+ for(let i=1;i<sts.length;i++)t+=`Desde cada rama anterior se abren las ${sts[i].options.length} opciones de <b>${esc(sts[i].name)}</b>. `;
+ t+=`Cada recorrido completo desde Inicio hasta el final representa <b>un resultado del espacio muestral</b>. En total existen <b>${total}</b> recorridos, por lo tanto <b>n(S) = ${total}</b>.`;
+ return t
+}
+function treeSVG(sts){
+ const root={label:"Inicio",depth:0,children:[]};
+ function exp(n,d){if(d>=sts.length)return;n.children=sts[d].options.map(o=>{let c={label:o,depth:d+1,children:[]};exp(c,d+1);return c})} exp(root,0);
+ let leaves=[];function collect(n){if(!n.children.length)leaves.push(n);else n.children.forEach(collect)}collect(root);
+ const gap=44,top=55,dx=190,W=Math.max(900,160+sts.length*dx),H=Math.max(250,110+(leaves.length-1)*gap);
+ leaves.forEach((l,i)=>l.y=top+i*gap);
+ function setY(n){if(!n.children.length)return n.y;let ys=n.children.map(setY);n.y=ys.reduce((a,b)=>a+b,0)/ys.length;return n.y}setY(root);
+ function setX(n){n.x=70+n.depth*dx;n.children.forEach(setX)}setX(root);
+ let s=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="min-width:850px">`;
+ s+=`<rect width="${W}" height="${H}" fill="white"/>`;
+ s+=`<text x="70" y="22" text-anchor="middle" font-family="Calibri" font-size="14" font-weight="700" fill="#1f4e8c">Inicio</text>`;
+ sts.forEach((st,i)=>s+=`<text x="${70+(i+1)*dx}" y="22" text-anchor="middle" font-family="Calibri" font-size="14" font-weight="700" fill="#1f4e8c">${esc(st.name)}</text>`);
+ function edges(n){n.children.forEach(c=>{s+=`<line x1="${n.x+14}" y1="${n.y}" x2="${c.x-14}" y2="${c.y}" stroke="#7e97b7" stroke-width="2"/>`;edges(c)})}edges(root);
+ function nodes(n){
+   if(n.depth===0){s+=`<circle cx="${n.x}" cy="${n.y}" r="19" fill="#1f4e8c"/><text x="${n.x}" y="${n.y+4}" text-anchor="middle" font-family="Calibri" font-size="11" fill="white">Inicio</text>`}
+   else{let w=Math.max(58,Math.min(130,n.label.length*7+18));s+=`<rect x="${n.x-w/2}" y="${n.y-14}" width="${w}" height="28" rx="6" fill="#fff" stroke="#1f4e8c" stroke-width="1.5"/><text x="${n.x}" y="${n.y+4}" text-anchor="middle" font-family="Calibri" font-size="12" fill="#173d70">${esc(n.label)}</text>`}
+   n.children.forEach(nodes)
+ }nodes(root);
+ function paths(n,p=[]){let np=n.depth?[...p,n.label]:p;if(!n.children.length)s+=`<text x="${n.x+80}" y="${n.y+4}" font-family="Calibri" font-size="11" fill="#344054">(${np.map(esc).join(", ")})</text>`;else n.children.forEach(c=>paths(c,np))}paths(root);
+ return s+"</svg>"
+}
+function copiar(){
+ const txt=`S = { ${lastOutcomes.map(o=>`(${o.join(", ")})`).join("; ")} }
+n(S) = ${lastOutcomes.length}`;
+ navigator.clipboard.writeText(txt).then(()=>msg.innerHTML='<div class="note">Espacio muestral copiado.</div>')
+}
+function descargarSVG(){
+ if(!lastSvg){msg.innerHTML='<div class="note">Primero genera un diagrama.</div>';return}
+ const blob=new Blob([lastSvg],{type:"image/svg+xml"}),u=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=u;a.download="diagrama_de_arbol.svg";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u)
+}
+window.onload=()=>{
+ try{
+  const x=JSON.parse(localStorage.getItem("arbol_pm")||"null");
+  if(x&&x.stages){titulo.value=x.titulo||"Experimento compuesto";stages.innerHTML="";x.stages.forEach(s=>addStage(s.name,s.options.join(", ")));return}
+ }catch(e){}
+ addStage("Etapa 1","");addStage("Etapa 2","")
+}
+</script>
+</body>
+</html>
